@@ -101,6 +101,32 @@
 
     <section class="panel">
       <div class="panel-head">
+        <h2>夏令时推算</h2>
+        <div class="filters">
+          <label class="inline" data-field="year">年份<input id="dst-year" placeholder="例如 2026" maxlength="4"></label>
+          <button type="button" id="dst-run">推算这一年</button>
+        </div>
+      </div>
+      <p class="convert-meta" id="dst-meta">填一个年份，把每条实行夏令时的档案这一年的切换时刻与生效区间算出来</p>
+      <div class="table-wrap">
+        <table class="grid">
+          <thead>
+            <tr>
+              <th>时区</th>
+              <th>显示名称</th>
+              <th>类型</th>
+              <th>本年切换（按时间先后）</th>
+              <th>夏令时生效区间（按时间先后）</th>
+            </tr>
+          </thead>
+          <tbody id="dst-body"></tbody>
+        </table>
+      </div>
+      <p class="empty-tip hidden" id="dst-empty">还没有实行夏令时的档案可推算</p>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
         <h2>换算台</h2>
         <div class="filters">
           <label class="inline" data-field="date">日期<input id="convert-date" type="date"></label>

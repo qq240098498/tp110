@@ -52,6 +52,15 @@ app.delete('/api/zones/:id', (req, res) => {
   }
 });
 
+// 夏令时推算：给一个年份，算出每条实行夏令时的档案这一年的切换时刻与生效区间
+app.get('/api/dst-schedule', (req, res) => {
+  try {
+    res.json(api.dstSchedule({ year: api.readQuery(req.query, 'year') }));
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
 // 换算：给一个时刻与来源时区，列出各时区对应的当地时刻
 app.post('/api/convert', (req, res) => {
   try {
