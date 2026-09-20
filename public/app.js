@@ -2,9 +2,11 @@
 
 const state = {
   zones: [],
+  dstZones: [],
   counts: { total: 0, dstCount: 0, noDstCount: 0 },
   editingId: '',
   lastConvert: null,
+  lastDst: null,
 };
 
 const MONTHS = [
@@ -134,6 +136,23 @@ async function loadZones() {
   renderConvertZoneOptions();
 }
 
+// 推算面板的档案下拉始终用全量的实行夏令时档案，不受档案区筛选影响
+async function loadDstZones(keepSelection) {
+  const payload = await request('/api/zones?dst=yes');
+  state.dstZones = payload.zones || [];
+  renderDstZoneOptions(keepSelection);
+}
+
+function renderDstZoneOptions(keepSelection) {
+  const select = el('dst-zone');
+  const current = keepSelection ? select.value : '';
+  select.innerHTML = '<option value="">全部实行夏令时档案</option>'
+    + state.dstZones
+      .map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}　${escapeHtml(item.displayName)}</option>`)
+      .join('');
+  if (current && state.dstZones.some((item) => item.id === current)) select.value = current;
+}
+
 function renderZones() {
   el('zone-counts').textContent = `共登记 ${state.counts.total} 条档案，其中实行夏令时 ${state.counts.dstCount} 条，不实行 ${state.counts.noDstCount} 条；当前筛选出 ${state.zones.length} 条`;
   const body = el('zone-body');
@@ -147,6 +166,7 @@ function renderZones() {
       <td class="mono">${escapeHtml(item.yearRangeText)}</td>
       <td class="note-cell">${escapeHtml(item.note)}</td>
       <td class="actions">
+        ${item.usesDst ? `<button type="button" class="link" data-zone-dst="${escapeHtml(item.id)}">推算</button>` : ''}
         <button type="button" class="link" data-zone-edit="${escapeHtml(item.id)}">编辑</button>
         <button type="button" class="link danger" data-zone-delete="${escapeHtml(item.id)}">删除</button>
       </td>
@@ -240,6 +260,7 @@ async function submitZone(event) {
     }
     closeZoneForm();
     await loadZones();
+    await loadDstZones(true).catch(() => {});
   } catch (err) {
     notify(err.message, 'error');
     markField(err.field);
@@ -280,10 +301,108 @@ function renderConvert(result) {
   el('convert-empty').classList.toggle('hidden', result.results.length > 0);
 }
 
+async function runDstSchedule() {
+  clearNotice();
+  clearFieldMarks();
+  const year = el('dst-year').value.trim();
+  const zoneId = el('dst-zone').value;
+  const params = new URLSearchParams();
+  if (year) params.set('year', year);
+  if (zoneId) params.set('zoneId', zoneId);
+  try {
+    const result = await request(`/api/dst-schedule?${params.toString()}`);
+    state.lastDst = result;
+    renderDstSchedule(result);
+  } catch (err) {
+    notify(err.message, 'error');
+    markField(err.field);
+  }
+}
+
+function transitionRow(t) {
+  return `<tr>
+    <td><span class="tag ${t.kind === 'start' ? 'on' : 'off'}">${escapeHtml(t.kindText)}</span></td>
+    <td>${escapeHtml(t.rule)}</td>
+    <td class="mono">${escapeHtml(t.date)}</td>
+    <td>${escapeHtml(t.weekday)}</td>
+    <td class="mono">${escapeHtml(t.time)}</td>
+    <td class="mono">${escapeHtml(t.offsetTextBefore)}</td>
+    <td>→</td>
+    <td class="mono">${escapeHtml(t.offsetTextAfter)}</td>
+    <td class="mono utc-cell">${escapeHtml(t.utc)}</td>
+  </tr>`;
+}
+
+function intervalRow(iv) {
+  const tag = iv.withinYear ? '<span class="tag off">年内</span>'
+    : `<span class="tag warn">${iv.carryFromPrevious ? '自上一年延续' : ''}${iv.carryFromPrevious && iv.carryToNext ? ' / ' : ''}${iv.carryToNext ? '延续到次年' : ''}</span>`;
+  return `<tr>
+    <td class="mono">${escapeHtml(iv.begin.date)} ${escapeHtml(iv.begin.time)}（${escapeHtml(iv.begin.weekday)}）起</td>
+    <td class="mono">${escapeHtml(iv.end.date)} ${escapeHtml(iv.end.time)}（${escapeHtml(iv.end.weekday)}）止</td>
+    <td class="mono">${escapeHtml(iv.offsetText)}</td>
+    <td>${tag}<span class="scope-note">${escapeHtml(iv.scopeText)}</span></td>
+  </tr>`;
+}
+
+function renderDstSchedule(result) {
+  el('dst-meta').textContent = `${result.year} 年：登记档案共 ${result.zonesInScope} 条，实行夏令时 ${result.dstZoneCount} 条，本次推算 ${result.scheduledCount} 条，其中该年实际实行 ${result.activeCount} 条。区间按开始时刻先后排列；开始与结束时刻都是当地挂钟时间，切换后时钟按新偏移走。`;
+  const box = el('dst-results');
+  if (!result.schedules.length) {
+    box.innerHTML = '';
+    el('dst-empty').classList.remove('hidden');
+    return;
+  }
+  el('dst-empty').classList.add('hidden');
+  box.innerHTML = result.schedules.map((item) => `<div class="dst-card ${item.activeInYear ? '' : 'inactive'}">
+    <div class="dst-card-head">
+      <div>
+        <span class="mono dst-name">${escapeHtml(item.name)}</span>
+        <span class="dst-display">${escapeHtml(item.displayName)}</span>
+      </div>
+      <div class="dst-tags">
+        <span class="tag ${item.crossesYear ? 'warn' : 'off'}">${escapeHtml(item.crossesYearText)}</span>
+        <span class="tag ${item.activeInYear ? 'on' : 'off'}">${escapeHtml(item.activeText)}</span>
+      </div>
+    </div>
+    <p class="dst-rules">规则：${escapeHtml(item.startRule)} 起，标准偏移 ${escapeHtml(item.standardOffsetText)}；${escapeHtml(item.endRule)} 止，夏令时偏移 ${escapeHtml(item.dstOffsetText)}</p>
+    <div class="dst-sub">该年两次切换（${result.year} 年挂钟日期）</div>
+    <div class="table-wrap">
+      <table class="grid dst-grid">
+        <thead><tr><th>切换</th><th>规则</th><th>日期</th><th>星期</th><th>当地时刻</th><th>切换前偏移</th><th></th><th>切换后偏移</th><th>对应 UTC 瞬间</th></tr></thead>
+        <tbody>${item.transitions.map(transitionRow).join('')}</tbody>
+      </table>
+    </div>
+    <div class="dst-sub">该年夏令时生效区间（按时间先后）</div>
+    <div class="table-wrap">
+      <table class="grid dst-grid">
+        <thead><tr><th>开始</th><th>结束</th><th>区间内偏移</th><th>跨年情况</th></tr></thead>
+        <tbody>${item.intervals.map(intervalRow).join('')}</tbody>
+      </table>
+    </div>
+  </div>`).join('');
+}
+
+el('dst-run').addEventListener('click', runDstSchedule);
+el('dst-year').addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') runDstSchedule();
+});
+el('dst-zone').addEventListener('change', () => {
+  if (el('dst-year').value.trim()) runDstSchedule();
+});
+
 // 列表上的操作用事件委托统一处理，列表重绘之后不需要重新绑定
 document.addEventListener('click', async (event) => {
   const node = event.target.closest('button');
   if (!node) return;
+
+  if (node.dataset.zoneDst) {
+    clearNotice();
+    el('dst-zone').value = node.dataset.zoneDst;
+    if (!el('dst-year').value) el('dst-year').value = String(new Date().getFullYear());
+    runDstSchedule();
+    el('dst-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
 
   if (node.dataset.zoneEdit) {
     clearNotice();
@@ -301,6 +420,7 @@ document.addEventListener('click', async (event) => {
       if (state.editingId === node.dataset.zoneDelete) closeZoneForm();
       notify('时区档案已删除', 'ok');
       await loadZones();
+      await loadDstZones(true).catch(() => {});
     } catch (err) {
       notify(err.message, 'error');
     }
@@ -341,4 +461,6 @@ loadHealth();
 const now = new Date();
 el('convert-date').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 el('convert-time').value = '09:30';
+el('dst-year').value = String(now.getFullYear());
 loadZones().catch((err) => notify(err.message, 'error'));
+loadDstZones().catch(() => {});

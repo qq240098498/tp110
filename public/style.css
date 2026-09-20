@@ -374,3 +374,75 @@ label.full input {
   display: flex;
   gap: 10px;
 }
+
+.dst-card {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fcfdff;
+}
+
+.dst-card.inactive {
+  background: #fafafa;
+  opacity: 0.85;
+}
+
+.dst-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dst-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.dst-display {
+  margin-left: 8px;
+  color: var(--ink-soft);
+  font-size: 12.5px;
+}
+
+.dst-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.dst-rules {
+  margin: 8px 0 0;
+  color: var(--ink-soft);
+  font-size: 12.5px;
+}
+
+.dst-sub {
+  margin: 12px 0 6px;
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+table.dst-grid {
+  min-width: 720px;
+}
+
+table.dst-grid td {
+  max-width: none;
+  white-space: normal;
+}
+
+td.utc-cell {
+  color: var(--ink-soft);
+}
+
+.scope-note {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink-soft);
+  font-size: 12px;
+}

@@ -101,6 +101,20 @@
 
     <section class="panel">
       <div class="panel-head">
+        <h2>夏令时切换推算</h2>
+        <div class="filters">
+          <label class="inline" data-field="year">年份<input id="dst-year" placeholder="例如 2024" maxlength="4"></label>
+          <label class="inline" data-field="zoneId">只看档案<select id="dst-zone"><option value="">全部实行夏令时档案</option></select></label>
+          <button type="button" id="dst-run">推算这一年</button>
+        </div>
+      </div>
+      <p class="convert-meta" id="dst-meta">填好年份点推算：每条实行夏令时的档案会列出这一年开始与结束分别落在哪一天、当地几点、切换之后偏移变成多少，并按时间先后排出夏令时生效区间；南半球跨年的档案会标出哪一段自上一年延续、哪一段延续到次年。</p>
+      <div id="dst-results"></div>
+      <p class="empty-tip hidden" id="dst-empty">这一年没有可展示的推算结果</p>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
         <h2>换算台</h2>
         <div class="filters">
           <label class="inline" data-field="date">日期<input id="convert-date" type="date"></label>

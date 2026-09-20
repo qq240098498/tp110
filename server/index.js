@@ -13,6 +13,18 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true, port: PORT });
 });
 
+// 夏令时切换推算：给一个年份，列出各实行夏令时档案这一年的切换时刻与生效区间
+app.get('/api/dst-schedule', (req, res) => {
+  try {
+    res.json(api.listDstSchedules({
+      year: api.readQuery(req.query, 'year'),
+      zoneId: api.readQuery(req.query, 'zoneId'),
+    }));
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
 app.get('/api/zones', (req, res) => {
   res.json(api.listZones({
     dst: api.readQuery(req.query, 'dst'),
